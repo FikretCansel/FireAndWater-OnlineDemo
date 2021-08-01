@@ -4,7 +4,6 @@ import platformImg from "./assets/platform.png";
 import starImg from "./assets/star.png";
 import bombImg from "./assets/bomb.png";
 import dudeImg from "./assets/dude.png";
-// import { Character } from "./selectCharacter";
 
 var platforms;
 var player;
@@ -33,12 +32,12 @@ class MyGame extends Phaser.Scene {
     if (cursors.left.isDown) {
       player.setVelocityX(-160);
       player.anims.play("left", true);
-      sendMyLoc();
+      sendMyLoc("LEFT");
     } else if (cursors.right.isDown) {
       player.setVelocityX(160);
 
       player.anims.play("right", true);
-      sendMyLoc();
+      sendMyLoc("RIGHT");
     } else {
       player.setVelocityX(0);
 
@@ -84,7 +83,7 @@ class MyGame extends Phaser.Scene {
       });
   
       stars.children.iterate(function (child) {
-        child.setBounceY(Phaser.Math.FloatBetween(0.4, 0.8));
+        child.setBounceY(0.6);
       });
   }
 
@@ -121,6 +120,7 @@ class MyGame extends Phaser.Scene {
 
     //Yıldız Aldıgında
     this.physics.add.overlap(player, stars, collectStar, null, this);
+    this.physics.add.overlap(player2, stars, collectStar, null, this);
     function collectStar(player, star) {
       star.disableBody(true, true);
       score += 10;
@@ -132,13 +132,16 @@ class MyGame extends Phaser.Scene {
           child.enableBody(true, child.x, 0, true, true);
         });
 
-        var x =
-          player.x < 400
-            ? Phaser.Math.Between(400, 800)
-            : Phaser.Math.Between(0, 400);
+        var x =417;
+            
         this.bombCreate(x);
       }
     }
+
+
+
+
+
     scoreText = this.add.text(16, 16, `score : 0`, {
       fontSize: "32px",
       fill: "#000",
@@ -154,11 +157,12 @@ class MyGame extends Phaser.Scene {
     var bomb = bombs.create(x, 16, "bomb");
     bomb.setBounce(1);
     bomb.setCollideWorldBounds(true);
-    bomb.setVelocity(Phaser.Math.Between(-200, 200), 20);
+    bomb.setVelocity(300);
   }
 
   dead(){
     this.physics.add.collider(player, bombs, hitBomb, null, this);
+    this.physics.add.collider(player2, bombs, hitBomb, null, this);
     function hitBomb(player, bomb) {
       this.physics.pause();
 
@@ -167,6 +171,8 @@ class MyGame extends Phaser.Scene {
       player.anims.play("turn");
 
       this.gameOver = true;
+
+      sendDeadData();
     }
   }
 
@@ -196,22 +202,36 @@ const socket = io('ws://localhost:8080');
 
 
 socket.on('message', socketItsLoc => {
+  if(socketItsLoc.event==="DEAD"){
+    window.location.reload(1);
+  }
+
     if(socketItsLoc.id!==userId){
         if(socketItsLoc.event==="JUMP"){
             player2.setVelocityY(-330);
-            console.log("Zıpla player2")
+            player2.anims.play("turn");
         }else{
+            if(socketItsLoc.anim==="LEFT"){
+              player2.anims.play("left", true);
+            }
+            else if(socketItsLoc.anim==="RIGHT"){
+              player2.anims.play("right", true);
+            }
             player2.x=socketItsLoc.xLoc;
             player2.y=socketItsLoc.yLoc;
         }
     }
 });
 
-function sendMyLoc(){
-    socket.emit('message', {id:userId,xLoc:player.x,yLoc:player.y})
+function sendMyLoc(direction){
+    socket.emit('message', {id:userId,xLoc:player.x,yLoc:player.y,anim:direction})
 }
 function sendJumpInfo() {
     socket.emit('message', {id:userId,event:"JUMP"})
+}
+
+function sendDeadData() {
+  socket.emit('message', {id:userId,event:"DEAD"})
 }
 
 
